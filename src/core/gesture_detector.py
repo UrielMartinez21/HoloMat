@@ -8,14 +8,16 @@ class GestureDetector:
         self,
         pinch_threshold=0.08,
         pinch_release_threshold=0.10,
+        pinch_drag_release_threshold=0.13,
         click_max_duration=0.30,
         drag_threshold=12,
         hold_duration=0.60,
         pinch_buffer_size=3,
-        distance_smoothing_frames=5
+        distance_smoothing_frames=7
     ):
         self.pinch_threshold = pinch_threshold
         self.pinch_release_threshold = pinch_release_threshold
+        self.pinch_drag_release_threshold = pinch_drag_release_threshold
         self.click_max_duration = click_max_duration
         self.drag_threshold = drag_threshold
         self.hold_duration = hold_duration
@@ -28,13 +30,21 @@ class GestureDetector:
         self.drag_started = False
         self.hold_triggered = False
 
-        # Buffer de confirmación: requiere N frames consecutivos
-        # en el mismo estado para aceptar un cambio
+        # Buffer de confirmación
         self.pinch_buffer_size = pinch_buffer_size
         self.pinch_buffer = deque(maxlen=pinch_buffer_size)
 
         # Historial de distancias para suavizado
         self.distance_history = deque(maxlen=distance_smoothing_frames)
+
+        # Estabilidad temporal
+        self.pinch_min_stable_time = 0.05
+        self.pinch_stable_since = None
+
+        # Protección contra soltar durante drag:
+        # requiere N frames consecutivos de "no pinch" para soltar en drag
+        self.release_buffer_size = 4
+        self.release_buffer = deque(maxlen=self.release_buffer_size)
 
     def _distance(self, p1, p2):
         return math.sqrt(
@@ -56,47 +66,43 @@ class GestureDetector:
         )
 
     def _get_smoothed_distance(self, hand_landmarks):
-        """Calcula la distancia pulgar-índice promediada sobre N frames."""
+        """Calcula la distancia pulgar-índice con mediana sobre N frames."""
         thumb_tip = hand_landmarks.landmark[4]
         index_tip = hand_landmarks.landmark[8]
 
         raw_distance = self._distance(thumb_tip, index_tip)
         self.distance_history.append(raw_distance)
 
-        return sum(self.distance_history) / len(self.distance_history)
+        sorted_distances = sorted(self.distance_history)
+        mid = len(sorted_distances) // 2
+
+        if len(sorted_distances) % 2 == 0:
+            return (sorted_distances[mid - 1] + sorted_distances[mid]) / 2
+        else:
+            return sorted_distances[mid]
 
     def _confirm_pinch_state(self, raw_pinch):
-        """
-        Solo acepta un cambio de estado si se mantiene
-        por pinch_buffer_size frames consecutivos.
-        """
+        """Solo acepta cambio si se mantiene por N frames."""
         self.pinch_buffer.append(raw_pinch)
 
         if len(self.pinch_buffer) < self.pinch_buffer_size:
             return self.previous_pinch
 
-        # Todos los frames recientes coinciden → aceptar cambio
         if all(self.pinch_buffer):
             return True
         elif not any(self.pinch_buffer):
             return False
 
-        # Mixto → mantener estado anterior
         return self.previous_pinch
 
     def _is_pinch_posture(self, hand_landmarks):
-        """
-        Verifica que la postura de la mano sea consistente
-        con un pinch: al menos 2 dedos (medio, anular, meñique)
-        deben estar relativamente extendidos.
-        """
+        """Al menos 2 dedos (medio, anular, meñique) extendidos."""
         landmarks = hand_landmarks.landmark
 
-        # Contar dedos extendidos (sin pulgar ni índice)
         fingers = [
-            (12, 10, 9),   # Medio
-            (16, 14, 13),  # Anular
-            (20, 18, 17),  # Meñique
+            (12, 10, 9),
+            (16, 14, 13),
+            (20, 18, 17),
         ]
 
         extended = 0
@@ -112,19 +118,51 @@ class GestureDetector:
     def is_pinching(self, hand_landmarks):
         distance = self._get_smoothed_distance(hand_landmarks)
 
-        # Evaluar distancia con histéresis
+        # Umbral de release más generoso durante drag
+        if self.drag_started:
+            release_threshold = self.pinch_drag_release_threshold
+        else:
+            release_threshold = self.pinch_release_threshold
+
+        # Histéresis
         if self.previous_pinch:
-            raw_pinch = distance < self.pinch_release_threshold
+            raw_pinch = distance < release_threshold
         else:
             raw_pinch = distance < self.pinch_threshold
 
-        # Confirmar con postura de la mano
+        # Validar postura al intentar iniciar pinch
         if raw_pinch and not self.previous_pinch:
             if not self._is_pinch_posture(hand_landmarks):
                 raw_pinch = False
 
-        # Confirmar con buffer temporal
-        return self._confirm_pinch_state(raw_pinch)
+        # Durante drag, protección extra contra soltar
+        if self.drag_started and not raw_pinch:
+            self.release_buffer.append(False)
+            # Solo soltar si TODOS los frames del buffer dicen "no pinch"
+            if not all(not x for x in self.release_buffer):
+                raw_pinch = True
+            # Si el buffer confirma release, dejarlo pasar
+        elif self.drag_started:
+            self.release_buffer.clear()
+
+        # Confirmar con buffer normal
+        confirmed = self._confirm_pinch_state(raw_pinch)
+
+        # Estabilidad temporal para iniciar
+        current_time = time.time()
+
+        if confirmed and not self.previous_pinch:
+            if self.pinch_stable_since is None:
+                self.pinch_stable_since = current_time
+                return False
+
+            if current_time - self.pinch_stable_since < self.pinch_min_stable_time:
+                return False
+
+        if not confirmed:
+            self.pinch_stable_since = None
+
+        return confirmed
 
     def _is_finger_extended(self, landmarks, tip_idx, pip_idx, mcp_idx):
         tip = landmarks[tip_idx]
@@ -189,6 +227,7 @@ class GestureDetector:
 
             self.drag_started = False
             self.hold_triggered = False
+            self.release_buffer.clear()
 
             event = "PINCH_START"
 
@@ -255,6 +294,7 @@ class GestureDetector:
 
             self.drag_started = False
             self.hold_triggered = False
+            self.release_buffer.clear()
 
         self.previous_pinch = current_pinch
 

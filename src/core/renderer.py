@@ -1,85 +1,89 @@
-import cv2
+import pygame
 import numpy as np
 
 
 class Renderer:
-    def __init__(self):
+    def __init__(self, width=1280, height=720):
+        pygame.init()
+        self.width = width
+        self.height = height
+
+        self.screen = pygame.display.set_mode(
+            (width, height),
+            pygame.NOFRAME
+        )
+        pygame.display.set_caption("HoloMat")
+
+        self.clock = pygame.time.Clock()
+        self.fps = 30
+
         self.interaction_text = "Sin gesto"
 
-        # Colores estilo Concept Bytes
-        self.color_primary = (230, 216, 173)     # Azul claro (LIGHT_BLUE en BGR)
-        self.color_hover = (255, 255, 200)       # Azul más brillante
-        self.color_active = (0, 200, 255)        # Naranja para drag
-        self.color_pinch = (0, 100, 255)         # Rojo-naranja para pinch activo
-        self.color_text = (230, 216, 173)        # Mismo azul claro
-        self.color_bg = (40, 20, 20)             # Fondo de ventana (navy oscuro)
+        # Colores estilo HoloMat
+        self.color_primary = (173, 216, 230)     # Azul claro
+        self.color_hover = (200, 255, 255)       # Azul más brillante
+        self.color_active = (255, 200, 0)        # Naranja/dorado para drag
+        self.color_pinch = (255, 100, 0)         # Rojo-naranja para pinch activo
+        self.color_text = (173, 216, 230)        # Azul claro
+        self.color_bg = (20, 20, 40)             # Navy oscuro
+        self.color_black = (0, 0, 0)
 
-    def draw_finger_point(self, frame, x, y, is_pinching=False, is_hovering=False):
-        """
-        Dibuja un punto/anillo en la punta del índice.
-        Estilo Concept Bytes: anillo azul claro.
-        """
-        if is_pinching:
-            color = self.color_pinch
-            radius = 18
-            thickness = 4
-        elif is_hovering:
-            color = self.color_hover
-            radius = 16
-            thickness = 3
-        else:
-            color = self.color_primary
-            radius = 15
-            thickness = 3
+        # Fuentes
+        self.font_title = pygame.font.SysFont("Consolas", 22, bold=True)
+        self.font_status = pygame.font.SysFont("Consolas", 18)
+        self.font_small = pygame.font.SysFont("Consolas", 14)
 
-        # Anillo principal
-        cv2.circle(frame, (x, y), radius, color, thickness)
+    def handle_events(self):
+        """Procesa eventos de Pygame. Retorna False si hay que cerrar."""
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    return False
+        return True
 
-        # Punto central sutil
-        cv2.circle(frame, (x, y), 3, color, cv2.FILLED)
+    def clear(self):
+        """Limpia la pantalla con fondo negro."""
+        self.screen.fill(self.color_black)
 
-    def draw_pinch_feedback(self, frame, hand_landmarks, frame_shape, pinch_threshold, release_threshold):
-        """
-        Línea entre pulgar e índice. Solo visible cuando
-        estás cerca del umbral de pinch (no siempre).
-        """
+    def draw_finger_points(self, hand_landmarks, frame_shape, is_pinching=False, is_hovering=False):
+        """Dibuja un círculo en el índice y otro en el pulgar."""
         h, w, _ = frame_shape
 
-        thumb_tip = hand_landmarks.landmark[4]
         index_tip = hand_landmarks.landmark[8]
+        thumb_tip = hand_landmarks.landmark[4]
 
-        tx = int(thumb_tip.x * w)
-        ty = int(thumb_tip.y * h)
         ix = int(index_tip.x * w)
         iy = int(index_tip.y * h)
+        tx = int(thumb_tip.x * w)
+        ty = int(thumb_tip.y * h)
 
-        import math
-        distance = math.sqrt(
-            (thumb_tip.x - index_tip.x) ** 2 +
-            (thumb_tip.y - index_tip.y) ** 2
-        )
-
-        # Solo mostrar feedback cuando estás cerca o en pinch
-        if distance >= release_threshold * 1.8:
-            return
-
-        if distance < pinch_threshold:
+        if is_pinching:
             color = self.color_pinch
+            index_radius = 16
+            thumb_radius = 12
             thickness = 3
-        elif distance < release_threshold:
-            color = self.color_active
-            thickness = 2
+        elif is_hovering:
+            color = self.color_hover
+            index_radius = 15
+            thumb_radius = 10
+            thickness = 3
         else:
-            # Cerca pero no activado → sutil
             color = self.color_primary
-            thickness = 1
+            index_radius = 15
+            thumb_radius = 10
+            thickness = 3
 
-        cv2.line(frame, (tx, ty), (ix, iy), color, thickness)
+        # Anillo en el índice
+        pygame.draw.circle(self.screen, color, (ix, iy), index_radius, thickness)
+        pygame.draw.circle(self.screen, color, (ix, iy), 3)
 
-        # Punto en el pulgar cuando está cerca
-        cv2.circle(frame, (tx, ty), 8, color, 2)
+        # Anillo en el pulgar
+        pygame.draw.circle(self.screen, color, (tx, ty), thumb_radius, 2)
+        pygame.draw.circle(self.screen, color, (tx, ty), 2)
 
-    def draw_windows(self, frame, windows, active_window):
+    def draw_windows(self, windows, active_window):
         for window in windows:
 
             x = window.x
@@ -101,83 +105,66 @@ class Renderer:
                 thickness = 2
                 corner_len = 20
 
-            # Fondo semi-transparente navy
-            overlay = frame.copy()
-            cv2.rectangle(
-                overlay,
-                (x, y),
-                (x + w, y + h),
-                self.color_bg,
-                cv2.FILLED
-            )
-            cv2.addWeighted(overlay, 0.6, frame, 0.4, 0, frame)
+            # Fondo semi-transparente
+            bg_surface = pygame.Surface((w, h), pygame.SRCALPHA)
+            bg_surface.fill((20, 20, 40, 150))
+            self.screen.blit(bg_surface, (x, y))
 
             # Esquinas estilo HUD
-            self._draw_corner_brackets(
-                frame, x, y, w, h,
-                color, thickness, corner_len
-            )
+            self._draw_corner_brackets(x, y, w, h, color, thickness, corner_len)
 
-            # Borde superior completo (línea fina)
-            cv2.line(
-                frame,
+            # Borde superior (línea fina entre esquinas)
+            pygame.draw.line(
+                self.screen, color,
                 (x + corner_len, y),
                 (x + w - corner_len, y),
-                color,
                 1
             )
 
             # Línea separadora debajo del título
             line_y = y + 50
-            cv2.line(
-                frame,
+            pygame.draw.line(
+                self.screen, color,
                 (x + 10, line_y),
                 (x + w - 10, line_y),
-                color,
                 1
             )
 
             # Nombre de la ventana
-            cv2.putText(
-                frame,
-                window.name,
-                (x + 15, y + 35),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.65,
-                color,
-                2
-            )
+            text_surface = self.font_title.render(window.name, True, color)
+            self.screen.blit(text_surface, (x + 15, y + 15))
 
-    def _draw_corner_brackets(self, frame, x, y, w, h, color, thickness=2, corner_len=20):
-        """Dibuja solo las esquinas del rectángulo, estilo HUD."""
-        # Esquina superior izquierda
-        cv2.line(frame, (x, y), (x + corner_len, y), color, thickness)
-        cv2.line(frame, (x, y), (x, y + corner_len), color, thickness)
+    def _draw_corner_brackets(self, x, y, w, h, color, thickness=2, corner_len=20):
+        """Esquinas estilo HUD."""
+        # Superior izquierda
+        pygame.draw.line(self.screen, color, (x, y), (x + corner_len, y), thickness)
+        pygame.draw.line(self.screen, color, (x, y), (x, y + corner_len), thickness)
 
-        # Esquina superior derecha
-        cv2.line(frame, (x + w, y), (x + w - corner_len, y), color, thickness)
-        cv2.line(frame, (x + w, y), (x + w, y + corner_len), color, thickness)
+        # Superior derecha
+        pygame.draw.line(self.screen, color, (x + w, y), (x + w - corner_len, y), thickness)
+        pygame.draw.line(self.screen, color, (x + w, y), (x + w, y + corner_len), thickness)
 
-        # Esquina inferior izquierda
-        cv2.line(frame, (x, y + h), (x + corner_len, y + h), color, thickness)
-        cv2.line(frame, (x, y + h), (x, y + h - corner_len), color, thickness)
+        # Inferior izquierda
+        pygame.draw.line(self.screen, color, (x, y + h), (x + corner_len, y + h), thickness)
+        pygame.draw.line(self.screen, color, (x, y + h), (x, y + h - corner_len), thickness)
 
-        # Esquina inferior derecha
-        cv2.line(frame, (x + w, y + h), (x + w - corner_len, y + h), color, thickness)
-        cv2.line(frame, (x + w, y + h), (x + w, y + h - corner_len), color, thickness)
+        # Inferior derecha
+        pygame.draw.line(self.screen, color, (x + w, y + h), (x + w - corner_len, y + h), thickness)
+        pygame.draw.line(self.screen, color, (x + w, y + h), (x + w, y + h - corner_len), thickness)
 
-    def draw_status(self, frame, frame_height):
-        """Status en la esquina inferior izquierda, discreto."""
-        cv2.putText(
-            frame,
-            self.interaction_text,
-            (30, frame_height - 30),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.6,
-            self.color_primary,
-            1
+    def draw_status(self):
+        """Status discreto en la esquina inferior izquierda."""
+        text_surface = self.font_status.render(
+            self.interaction_text, True, self.color_primary
         )
+        self.screen.blit(text_surface, (30, self.height - 40))
 
-    def render(self, frame, windows, active_window):
-        self.draw_windows(frame, windows, active_window)
-        self.draw_status(frame, frame.shape[0])
+    def render(self, windows, active_window):
+        """Dibuja ventanas y status, luego actualiza pantalla."""
+        self.draw_windows(windows, active_window)
+        self.draw_status()
+        pygame.display.flip()
+        self.clock.tick(self.fps)
+
+    def quit(self):
+        pygame.quit()
