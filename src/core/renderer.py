@@ -33,6 +33,13 @@ class Renderer:
         self.font_status = pygame.font.SysFont("Consolas", 18)
         self.font_small = pygame.font.SysFont("Consolas", 14)
 
+        # Widgets asociados a ventanas (por nombre)
+        self.widgets = {}
+
+    def register_widget(self, window_name, widget):
+        """Registra un widget para que se dibuje dentro de una ventana."""
+        self.widgets[window_name] = widget
+
     def handle_events(self):
         """Procesa eventos de Pygame. Retorna False si hay que cerrar."""
         for event in pygame.event.get():
@@ -133,6 +140,12 @@ class Renderer:
             # Nombre de la ventana
             text_surface = self.font_title.render(window.name, True, color)
             self.screen.blit(text_surface, (x + 15, y + 15))
+
+            # Dibujar widget si existe para esta ventana
+            if window.name in self.widgets:
+                self.widgets[window.name].draw(
+                    self.screen, x, y, w, h, color
+                )
 
     def _draw_corner_brackets(self, x, y, w, h, color, thickness=2, corner_len=20):
         """Esquinas estilo HUD."""

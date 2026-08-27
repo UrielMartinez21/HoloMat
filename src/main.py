@@ -6,6 +6,7 @@ from core.gesture_detector import GestureDetector
 from core.draggable_object import DraggableObject
 from core.window_manager import WindowManager
 from core.renderer import Renderer
+from core.widgets.weather_widget import WeatherWidget
 
 
 def main():
@@ -26,6 +27,7 @@ def main():
     gesture_detector = GestureDetector(
         pinch_threshold=0.08,
         pinch_release_threshold=0.10,
+        pinch_drag_release_threshold=0.13,
         click_max_duration=0.30,
         drag_threshold=12,
         hold_duration=0.60
@@ -33,6 +35,10 @@ def main():
 
     window_manager = WindowManager()
     renderer = Renderer(width, height)
+
+    # Widgets
+    weather_widget = WeatherWidget()
+    renderer.register_widget("WEATHER", weather_widget)
 
     window_manager.add_window(
         DraggableObject(
@@ -90,6 +96,9 @@ def main():
             # Limpiar pantalla
             renderer.clear()
             renderer.interaction_text = "Sin gesto"
+
+            # Actualizar widgets
+            weather_widget.update()
 
             if results.multi_hand_landmarks:
                 hand_landmarks = results.multi_hand_landmarks[0]
