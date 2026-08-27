@@ -82,6 +82,7 @@ class GestureDetector:
             if movement >= self.drag_threshold:
 
                 self.drag_started = True
+                self.pinch_start_position = (x, y)
                 event = "DRAG"
 
             # Sin movimiento pero tiempo suficiente → HOLD
