@@ -18,9 +18,10 @@ def main():
     tracker = HandTracker()
 
     gesture_detector = GestureDetector(
-        pinch_threshold=0.06,
+        pinch_threshold=0.08,
+        pinch_release_threshold=0.10,
         click_max_duration=0.30,
-        drag_threshold=20,
+        drag_threshold=12,
         hold_duration=0.60
     )
 
@@ -105,6 +106,14 @@ def main():
                 )
 
                 renderer.draw_cursor(frame, x, y, radius)
+
+                renderer.draw_pinch_feedback(
+                    frame,
+                    hand_landmarks,
+                    frame.shape,
+                    gesture_detector.pinch_threshold,
+                    gesture_detector.pinch_release_threshold
+                )
 
             else:
                 window_manager.clear_hover()

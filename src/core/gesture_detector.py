@@ -1,5 +1,6 @@
 import math
 import time
+from collections import deque
 
 
 class GestureDetector:
@@ -9,7 +10,9 @@ class GestureDetector:
         pinch_release_threshold=0.10,
         click_max_duration=0.30,
         drag_threshold=12,
-        hold_duration=0.60
+        hold_duration=0.60,
+        pinch_buffer_size=3,
+        distance_smoothing_frames=5
     ):
         self.pinch_threshold = pinch_threshold
         self.pinch_release_threshold = pinch_release_threshold
@@ -24,6 +27,14 @@ class GestureDetector:
 
         self.drag_started = False
         self.hold_triggered = False
+
+        # Buffer de confirmación: requiere N frames consecutivos
+        # en el mismo estado para aceptar un cambio
+        self.pinch_buffer_size = pinch_buffer_size
+        self.pinch_buffer = deque(maxlen=pinch_buffer_size)
+
+        # Historial de distancias para suavizado
+        self.distance_history = deque(maxlen=distance_smoothing_frames)
 
     def _distance(self, p1, p2):
         return math.sqrt(
@@ -44,17 +55,76 @@ class GestureDetector:
             (p1[1] - p2[1]) ** 2
         )
 
-    def is_pinching(self, hand_landmarks):
+    def _get_smoothed_distance(self, hand_landmarks):
+        """Calcula la distancia pulgar-índice promediada sobre N frames."""
         thumb_tip = hand_landmarks.landmark[4]
         index_tip = hand_landmarks.landmark[8]
 
-        distance = self._distance(thumb_tip, index_tip)
+        raw_distance = self._distance(thumb_tip, index_tip)
+        self.distance_history.append(raw_distance)
 
-        # Histéresis: umbral diferente para iniciar vs soltar
+        return sum(self.distance_history) / len(self.distance_history)
+
+    def _confirm_pinch_state(self, raw_pinch):
+        """
+        Solo acepta un cambio de estado si se mantiene
+        por pinch_buffer_size frames consecutivos.
+        """
+        self.pinch_buffer.append(raw_pinch)
+
+        if len(self.pinch_buffer) < self.pinch_buffer_size:
+            return self.previous_pinch
+
+        # Todos los frames recientes coinciden → aceptar cambio
+        if all(self.pinch_buffer):
+            return True
+        elif not any(self.pinch_buffer):
+            return False
+
+        # Mixto → mantener estado anterior
+        return self.previous_pinch
+
+    def _is_pinch_posture(self, hand_landmarks):
+        """
+        Verifica que la postura de la mano sea consistente
+        con un pinch: al menos 2 dedos (medio, anular, meñique)
+        deben estar relativamente extendidos.
+        """
+        landmarks = hand_landmarks.landmark
+
+        # Contar dedos extendidos (sin pulgar ni índice)
+        fingers = [
+            (12, 10, 9),   # Medio
+            (16, 14, 13),  # Anular
+            (20, 18, 17),  # Meñique
+        ]
+
+        extended = 0
+        for tip, pip, mcp in fingers:
+            tip_to_mcp = self._landmark_distance(landmarks[tip], landmarks[mcp])
+            pip_to_mcp = self._landmark_distance(landmarks[pip], landmarks[mcp])
+
+            if tip_to_mcp > pip_to_mcp:
+                extended += 1
+
+        return extended >= 2
+
+    def is_pinching(self, hand_landmarks):
+        distance = self._get_smoothed_distance(hand_landmarks)
+
+        # Evaluar distancia con histéresis
         if self.previous_pinch:
-            return distance < self.pinch_release_threshold
+            raw_pinch = distance < self.pinch_release_threshold
         else:
-            return distance < self.pinch_threshold
+            raw_pinch = distance < self.pinch_threshold
+
+        # Confirmar con postura de la mano
+        if raw_pinch and not self.previous_pinch:
+            if not self._is_pinch_posture(hand_landmarks):
+                raw_pinch = False
+
+        # Confirmar con buffer temporal
+        return self._confirm_pinch_state(raw_pinch)
 
     def _is_finger_extended(self, landmarks, tip_idx, pip_idx, mcp_idx):
         tip = landmarks[tip_idx]
