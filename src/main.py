@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 
 from core.hand_tracker import HandTracker
 from core.gesture_detector import GestureDetector
@@ -14,6 +15,10 @@ def main():
 
     if not cap.isOpened():
         raise RuntimeError("No se pudo abrir la cámara.")
+
+    # Obtener resolución real de la cámara
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     tracker = HandTracker()
 
@@ -69,16 +74,22 @@ def main():
                 break
 
             frame = cv2.flip(frame, 1)
-            results = tracker.process(frame)
+
+            # Procesar mano sobre el frame de cámara
+            results = tracker.process(frame, draw=False)
+
+            # Reemplazar con fondo negro
+            frame = np.zeros((frame_height, frame_width, 3), dtype=np.uint8)
 
             renderer.interaction_text = "Sin gesto"
+            is_pinching = False
 
             if results.multi_hand_landmarks:
                 hand_landmarks = results.multi_hand_landmarks[0]
 
                 x, y = tracker.get_index_tip(
                     hand_landmarks,
-                    frame.shape
+                    (frame_height, frame_width, 3)
                 )
 
                 hovered_window = window_manager.update_hover(x, y)
@@ -88,6 +99,8 @@ def main():
                     x,
                     y
                 )
+
+                is_pinching = gesture_detector.previous_pinch
 
                 result_text = window_manager.handle_event(
                     event,
@@ -100,19 +113,22 @@ def main():
                 if result_text:
                     renderer.interaction_text = result_text
 
-                radius = renderer.get_cursor_radius(
-                    hovered_window,
-                    window_manager.active_window
-                )
-
-                renderer.draw_cursor(frame, x, y, radius)
-
+                # Feedback de pinch (solo cuando está cerca)
                 renderer.draw_pinch_feedback(
                     frame,
                     hand_landmarks,
-                    frame.shape,
+                    (frame_height, frame_width, 3),
                     gesture_detector.pinch_threshold,
                     gesture_detector.pinch_release_threshold
+                )
+
+                # Punto en el índice (estilo Concept Bytes)
+                renderer.draw_finger_point(
+                    frame,
+                    x,
+                    y,
+                    is_pinching=is_pinching,
+                    is_hovering=(hovered_window is not None)
                 )
 
             else:
