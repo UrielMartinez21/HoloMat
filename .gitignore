@@ -1,0 +1,8 @@
+# Folders
+venv/
+
+# Files
+*.pyc
+
+# OS generated files
+.DS_Store
