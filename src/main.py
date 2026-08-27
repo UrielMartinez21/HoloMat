@@ -4,6 +4,7 @@ from core.hand_tracker import HandTracker
 from core.gesture_detector import GestureDetector
 from core.draggable_object import DraggableObject
 from core.window_manager import WindowManager
+from core.renderer import Renderer
 
 
 def main():
@@ -22,6 +23,7 @@ def main():
     )
 
     window_manager = WindowManager()
+    renderer = Renderer()
 
     window_manager.add_window(
         DraggableObject(
@@ -56,8 +58,6 @@ def main():
         )
     )
 
-    interaction_text = "Sin gesto"
-
     try:
         while True:
             success, frame = cap.read()
@@ -66,13 +66,11 @@ def main():
                 break
 
             frame = cv2.flip(frame, 1)
-
             results = tracker.process(frame)
 
-            interaction_text = "Sin gesto"
+            renderer.interaction_text = "Sin gesto"
 
             if results.multi_hand_landmarks:
-
                 hand_landmarks = results.multi_hand_landmarks[0]
 
                 x, y = tracker.get_index_tip(
@@ -80,10 +78,7 @@ def main():
                     frame.shape
                 )
 
-                hovered_window = window_manager.update_hover(
-                    x,
-                    y
-                )
+                hovered_window = window_manager.update_hover(x, y)
 
                 event = gesture_detector.update_interaction(
                     hand_landmarks,
@@ -91,186 +86,34 @@ def main():
                     y
                 )
 
-                # -------------------------
-                # CLICK
-                # -------------------------
-
-                if event == "CLICK":
-
-                    clicked_window = window_manager.get_window_at(
-                        x,
-                        y
-                    )
-
-                    if clicked_window:
-                        interaction_text = (
-                            f"CLICK: {clicked_window.name}"
-                        )
-
-                        print(
-                            f"CLICK en {clicked_window.name}"
-                        )
-                    else:
-                        interaction_text = "CLICK"
-
-                # -------------------------
-                # HOLD
-                # -------------------------
-
-                elif event == "HOLD":
-
-                    held_window = window_manager.get_window_at(
-                        x,
-                        y
-                    )
-
-                    if held_window:
-                        interaction_text = (
-                            f"HOLD: {held_window.name}"
-                        )
-                    else:
-                        interaction_text = "HOLD"
-
-                # -------------------------
-                # DRAG
-                # -------------------------
-
-                elif event == "DRAG":
-
-                    if window_manager.active_window is None:
-
-                        window_manager.start_drag(
-                            x,
-                            y
-                        )
-
-                    window_manager.drag(
-                        x,
-                        y
-                    )
-
-                    interaction_text = "DRAG"
-
-                elif event == "DRAG_END":
-
-                    window_manager.stop_drag()
-
-                    interaction_text = "DRAG END"
-
-                elif event == "PINCH_START":
-
-                    interaction_text = "PINCH START"
-
-                elif event == "PINCH_HOLD":
-
-                    interaction_text = "PINCH HOLD"
-
-                elif event == "PINCH_END":
-
-                    interaction_text = "PINCH END"
-
-                elif gesture_detector.is_fist(
+                result_text = window_manager.handle_event(
+                    event,
+                    x,
+                    y,
+                    gesture_detector,
                     hand_landmarks
-                ):
-                    interaction_text = "PUNO"
-
-                elif gesture_detector.is_hand_open(
-                    hand_landmarks
-                ):
-                    interaction_text = "MANO ABIERTA"
-
-                # -------------------------
-                # Cursor
-                # -------------------------
-
-                circle_radius = 10
-
-                if hovered_window:
-                    circle_radius = 18
-
-                if window_manager.active_window:
-                    circle_radius = 25
-
-                cv2.circle(
-                    frame,
-                    (x, y),
-                    circle_radius,
-                    (0, 0, 255),
-                    cv2.FILLED
                 )
 
-                cv2.putText(
-                    frame,
-                    f"Index: ({x}, {y})",
-                    (x + 15, y - 15),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.6,
-                    (255, 255, 255),
-                    2
+                if result_text:
+                    renderer.interaction_text = result_text
+
+                radius = renderer.get_cursor_radius(
+                    hovered_window,
+                    window_manager.active_window
                 )
+
+                renderer.draw_cursor(frame, x, y, radius)
 
             else:
+                window_manager.clear_hover()
 
-                for window in window_manager.windows:
-                    window.hovering = False
-
-            # -------------------------
-            # Dibujar ventanas
-            # -------------------------
-
-            for window in window_manager.windows:
-
-                if window.dragging:
-                    thickness = 6
-
-                elif window.hovering:
-                    thickness = 4
-
-                else:
-                    thickness = 2
-
-                cv2.rectangle(
-                    frame,
-                    (window.x, window.y),
-                    (
-                        window.x + window.width,
-                        window.y + window.height
-                    ),
-                    (255, 255, 255),
-                    thickness
-                )
-
-                cv2.putText(
-                    frame,
-                    window.name,
-                    (
-                        window.x + 20,
-                        window.y + 40
-                    ),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.8,
-                    (255, 255, 255),
-                    2
-                )
-
-            # -------------------------
-            # Estado
-            # -------------------------
-
-            cv2.putText(
+            renderer.render(
                 frame,
-                interaction_text,
-                (30, 50),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.9,
-                (255, 255, 255),
-                2
+                window_manager.windows,
+                window_manager.active_window
             )
 
-            cv2.imshow(
-                "HoloMat",
-                frame
-            )
+            cv2.imshow("HoloMat", frame)
 
             if cv2.waitKey(1) & 0xFF == 27:
                 break
