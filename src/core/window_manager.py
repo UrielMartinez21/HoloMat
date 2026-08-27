@@ -5,9 +5,14 @@ class WindowManager:
     def __init__(self):
         self.windows = []
         self.active_window = None
+        self.click_actions = {}
 
     def add_window(self, window):
         self.windows.append(window)
+
+    def register_click_action(self, window_name, callback):
+        """Registra una función a ejecutar cuando se hace click en una ventana."""
+        self.click_actions[window_name] = callback
 
     def update_hover(self, px, py):
         hovered = None
@@ -62,6 +67,10 @@ class WindowManager:
             clicked_window = self.get_window_at(x, y)
 
             if clicked_window:
+                # Ejecutar acción de click si existe
+                if clicked_window.name in self.click_actions:
+                    self.click_actions[clicked_window.name]()
+
                 print(f"CLICK en {clicked_window.name}")
                 return f"CLICK: {clicked_window.name}"
 

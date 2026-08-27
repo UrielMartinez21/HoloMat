@@ -24,6 +24,7 @@ class Renderer:
         self.color_hover = (200, 255, 255)       # Azul más brillante
         self.color_active = (255, 200, 0)        # Naranja/dorado para drag
         self.color_pinch = (255, 100, 0)         # Rojo-naranja para pinch activo
+        self.color_click = (100, 255, 100)       # Verde para click
         self.color_text = (173, 216, 230)        # Azul claro
         self.color_bg = (20, 20, 40)             # Navy oscuro
         self.color_black = (0, 0, 0)
@@ -33,7 +34,7 @@ class Renderer:
         self.font_status = pygame.font.SysFont("Consolas", 18)
         self.font_small = pygame.font.SysFont("Consolas", 14)
 
-        # Widgets asociados a ventanas (por nombre)
+        # Widgets asociados a ventanas
         self.widgets = {}
 
     def register_widget(self, window_name, widget):
@@ -54,41 +55,52 @@ class Renderer:
         """Limpia la pantalla con fondo negro."""
         self.screen.fill(self.color_black)
 
-    def draw_finger_points(self, hand_landmarks, frame_shape, is_pinching=False, is_hovering=False):
-        """Dibuja un círculo en el índice y otro en el pulgar."""
+    def draw_finger_points(self, hand_landmarks, frame_shape, is_pinching=False, is_clicking=False, is_hovering=False):
+        """Dibuja círculos en índice, pulgar y dedo medio."""
         h, w, _ = frame_shape
 
         index_tip = hand_landmarks.landmark[8]
         thumb_tip = hand_landmarks.landmark[4]
+        middle_tip = hand_landmarks.landmark[12]
 
         ix = int(index_tip.x * w)
         iy = int(index_tip.y * h)
         tx = int(thumb_tip.x * w)
         ty = int(thumb_tip.y * h)
+        mx = int(middle_tip.x * w)
+        my = int(middle_tip.y * h)
 
-        if is_pinching:
-            color = self.color_pinch
-            index_radius = 16
-            thumb_radius = 12
-            thickness = 3
-        elif is_hovering:
-            color = self.color_hover
-            index_radius = 15
-            thumb_radius = 10
-            thickness = 3
+        # Color del índice (cursor)
+        if is_hovering:
+            index_color = self.color_hover
         else:
-            color = self.color_primary
-            index_radius = 15
+            index_color = self.color_primary
+
+        # Anillo en el índice (siempre como cursor)
+        pygame.draw.circle(self.screen, index_color, (ix, iy), 15, 3)
+        pygame.draw.circle(self.screen, index_color, (ix, iy), 3)
+
+        # Pulgar: cambia si está en pinch/drag
+        if is_pinching:
+            thumb_color = self.color_pinch
+            thumb_radius = 12
+        else:
+            thumb_color = self.color_primary
             thumb_radius = 10
-            thickness = 3
 
-        # Anillo en el índice
-        pygame.draw.circle(self.screen, color, (ix, iy), index_radius, thickness)
-        pygame.draw.circle(self.screen, color, (ix, iy), 3)
+        pygame.draw.circle(self.screen, thumb_color, (tx, ty), thumb_radius, 2)
+        pygame.draw.circle(self.screen, thumb_color, (tx, ty), 2)
 
-        # Anillo en el pulgar
-        pygame.draw.circle(self.screen, color, (tx, ty), thumb_radius, 2)
-        pygame.draw.circle(self.screen, color, (tx, ty), 2)
+        # Dedo medio: cambia si está en click
+        if is_clicking:
+            mid_color = self.color_click
+            mid_radius = 12
+        else:
+            mid_color = self.color_primary
+            mid_radius = 8
+
+        pygame.draw.circle(self.screen, mid_color, (mx, my), mid_radius, 2)
+        pygame.draw.circle(self.screen, mid_color, (mx, my), 2)
 
     def draw_windows(self, windows, active_window):
         for window in windows:
@@ -120,7 +132,7 @@ class Renderer:
             # Esquinas estilo HUD
             self._draw_corner_brackets(x, y, w, h, color, thickness, corner_len)
 
-            # Borde superior (línea fina entre esquinas)
+            # Borde superior
             pygame.draw.line(
                 self.screen, color,
                 (x + corner_len, y),
@@ -141,7 +153,7 @@ class Renderer:
             text_surface = self.font_title.render(window.name, True, color)
             self.screen.blit(text_surface, (x + 15, y + 15))
 
-            # Dibujar widget si existe para esta ventana
+            # Dibujar widget si existe
             if window.name in self.widgets:
                 self.widgets[window.name].draw(
                     self.screen, x, y, w, h, color
@@ -149,19 +161,15 @@ class Renderer:
 
     def _draw_corner_brackets(self, x, y, w, h, color, thickness=2, corner_len=20):
         """Esquinas estilo HUD."""
-        # Superior izquierda
         pygame.draw.line(self.screen, color, (x, y), (x + corner_len, y), thickness)
         pygame.draw.line(self.screen, color, (x, y), (x, y + corner_len), thickness)
 
-        # Superior derecha
         pygame.draw.line(self.screen, color, (x + w, y), (x + w - corner_len, y), thickness)
         pygame.draw.line(self.screen, color, (x + w, y), (x + w, y + corner_len), thickness)
 
-        # Inferior izquierda
         pygame.draw.line(self.screen, color, (x, y + h), (x + corner_len, y + h), thickness)
         pygame.draw.line(self.screen, color, (x, y + h), (x, y + h - corner_len), thickness)
 
-        # Inferior derecha
         pygame.draw.line(self.screen, color, (x + w, y + h), (x + w - corner_len, y + h), thickness)
         pygame.draw.line(self.screen, color, (x + w, y + h), (x + w, y + h - corner_len), thickness)
 

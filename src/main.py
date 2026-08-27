@@ -7,6 +7,7 @@ from core.draggable_object import DraggableObject
 from core.window_manager import WindowManager
 from core.renderer import Renderer
 from core.widgets.weather_widget import WeatherWidget
+from core.widgets.spotify_widget import SpotifyWidget
 
 
 def main():
@@ -25,10 +26,12 @@ def main():
     tracker = HandTracker()
 
     gesture_detector = GestureDetector(
-        pinch_threshold=0.08,
-        pinch_release_threshold=0.10,
-        pinch_drag_release_threshold=0.13,
-        click_max_duration=0.30,
+        pinch_threshold=0.09,
+        pinch_release_threshold=0.11,
+        pinch_drag_release_threshold=0.14,
+        click_threshold=0.06,
+        click_release_threshold=0.08,
+        click_max_duration=0.40,
         drag_threshold=12,
         hold_duration=0.60
     )
@@ -38,7 +41,13 @@ def main():
 
     # Widgets
     weather_widget = WeatherWidget()
+    spotify_widget = SpotifyWidget()
+
     renderer.register_widget("WEATHER", weather_widget)
+    renderer.register_widget("SPOTIFY", spotify_widget)
+
+    # Registrar acciones de click por ventana
+    window_manager.register_click_action("SPOTIFY", spotify_widget.on_click)
 
     window_manager.add_window(
         DraggableObject(
@@ -99,6 +108,7 @@ def main():
 
             # Actualizar widgets
             weather_widget.update()
+            spotify_widget.update()
 
             if results.multi_hand_landmarks:
                 hand_landmarks = results.multi_hand_landmarks[0]
@@ -117,6 +127,7 @@ def main():
                 )
 
                 is_pinching = gesture_detector.previous_pinch
+                is_clicking = gesture_detector.previous_click_gesture
 
                 result_text = window_manager.handle_event(
                     event,
@@ -129,11 +140,12 @@ def main():
                 if result_text:
                     renderer.interaction_text = result_text
 
-                # Puntos en índice y pulgar
+                # Puntos en índice, pulgar y dedo medio
                 renderer.draw_finger_points(
                     hand_landmarks,
                     frame_shape,
                     is_pinching=is_pinching,
+                    is_clicking=is_clicking,
                     is_hovering=(hovered_window is not None)
                 )
 
