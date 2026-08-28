@@ -14,7 +14,7 @@ load_dotenv()
 class SpotifyAuth:
     """Maneja la autenticación OAuth2 con Spotify."""
 
-    TOKEN_FILE = ".spotify_token.json"
+    TOKEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".spotify_token.json")
     AUTH_URL = "https://accounts.spotify.com/authorize"
     TOKEN_URL = "https://accounts.spotify.com/api/token"
 

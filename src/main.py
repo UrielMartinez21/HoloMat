@@ -159,6 +159,7 @@ def main():
             )
 
     finally:
+        spotify_widget.stop()
         tracker.close()
         cap.release()
         renderer.quit()
