@@ -10,6 +10,7 @@ from core.home_menu import HomeMenu
 from core.widgets.weather_widget import WeatherWidget
 from core.widgets.spotify_widget import SpotifyWidget
 from core.widgets.system_widget import SystemWidget
+from core.widgets.jarvis_widget import JarvisWidget
 
 
 # Estados
@@ -38,16 +39,18 @@ def main():
     weather_widget = WeatherWidget()
     spotify_widget = SpotifyWidget()
     system_widget = SystemWidget()
+    jarvis_widget = JarvisWidget()
 
     widgets = {
         "WEATHER": weather_widget,
         "SPOTIFY": spotify_widget,
         "SYSTEM": system_widget,
+        "JARVIS": jarvis_widget,
     }
 
     # Menú Home
     home_menu = HomeMenu(width, height)
-    home_menu.setup(["WEATHER", "SPOTIFY", "SYSTEM"])
+    home_menu.setup(["WEATHER", "SPOTIFY", "SYSTEM", "JARVIS"])
 
     # Estado
     state = STATE_HOME
@@ -190,6 +193,7 @@ def main():
     finally:
         spotify_widget.stop()
         system_widget.stop()
+        jarvis_widget.stop()
         tracker.close()
         cap.release()
         renderer.quit()
