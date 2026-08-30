@@ -22,7 +22,11 @@ class WindowManager:
         """Registra una función a ejecutar cuando se hace click en una ventana."""
         self.click_actions[window_name] = callback
 
-    def update_hover(self, px, py):
+    def update_hover(self, px, py, is_pinching=False):
+        """
+        Actualiza hover de ventanas.
+        is_pinching: si True, suspende hover-to-click (el usuario está arrastrando).
+        """
         hovered = None
 
         for window in reversed(self.windows):
@@ -33,17 +37,23 @@ class WindowManager:
             else:
                 window.hovering = False
 
-        # Actualizar hover-to-click
-        self._update_hover_click(hovered)
+        # Hover-to-click solo cuando NO hay pinch activo
+        if is_pinching:
+            self._cancel_hover_click()
+        else:
+            self._update_hover_click(hovered)
 
         return hovered
 
     def _update_hover_click(self, hovered_window):
         """Actualiza el sistema de hover-to-click."""
         if hovered_window is None:
-            self.hover_target = None
-            self.hover_start_time = 0
-            self.hover_click_triggered = False
+            self._cancel_hover_click()
+            return
+
+        # Solo contar hover si la ventana tiene click_action
+        if hovered_window.name not in self.click_actions:
+            self._cancel_hover_click()
             return
 
         # Si cambió la ventana, resetear
@@ -53,7 +63,7 @@ class WindowManager:
             self.hover_click_triggered = False
             return
 
-        # Misma ventana → verificar si pasó el delay
+        # Ya se disparó, no repetir
         if self.hover_click_triggered:
             return
 
@@ -61,19 +71,18 @@ class WindowManager:
 
         if elapsed >= self.hover_click_delay:
             self.hover_click_triggered = True
+            self.click_actions[hovered_window.name]()
+            print(f"HOVER CLICK en {hovered_window.name}")
 
-            # Ejecutar acción de click
-            if hovered_window.name in self.click_actions:
-                self.click_actions[hovered_window.name]()
-                print(f"HOVER CLICK en {hovered_window.name}")
+    def _cancel_hover_click(self):
+        """Cancela cualquier hover-to-click en progreso."""
+        self.hover_target = None
+        self.hover_start_time = 0
+        self.hover_click_triggered = False
 
     def get_hover_click_progress(self):
         """Retorna (ventana, progreso 0.0-1.0) del hover-to-click actual."""
         if self.hover_target is None or self.hover_click_triggered:
-            return None, 0.0
-
-        # Solo mostrar progreso si la ventana tiene click_action
-        if self.hover_target.name not in self.click_actions:
             return None, 0.0
 
         elapsed = time.time() - self.hover_start_time
@@ -88,10 +97,7 @@ class WindowManager:
                 self.windows.remove(window)
                 self.windows.append(window)
 
-                # Cancelar hover-click al iniciar drag
-                self.hover_target = None
-                self.hover_start_time = 0
-                self.hover_click_triggered = False
+                self._cancel_hover_click()
 
                 return window
 
@@ -118,9 +124,7 @@ class WindowManager:
         for window in self.windows:
             window.hovering = False
 
-        self.hover_target = None
-        self.hover_start_time = 0
-        self.hover_click_triggered = False
+        self._cancel_hover_click()
 
     def handle_event(self, event, x, y, gesture_detector, hand_landmarks):
         """Procesa un evento de gesto y retorna el texto de interacción."""

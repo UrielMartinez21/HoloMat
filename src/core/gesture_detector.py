@@ -11,8 +11,8 @@ class GestureDetector:
         pinch_drag_release_threshold=0.14,
         drag_threshold=12,
         hold_duration=0.60,
-        pinch_buffer_size=2,
-        distance_smoothing_frames=4
+        pinch_buffer_size=3,
+        distance_smoothing_frames=5
     ):
         self.pinch_threshold = pinch_threshold
         self.pinch_release_threshold = pinch_release_threshold

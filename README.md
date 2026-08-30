@@ -1,41 +1,39 @@
 # HoloMat
 
-Interfaz holográfica controlada por gestos de la mano. Inspirado en el proyecto [HoloMat de Concept Bytes](https://github.com/Concept-Bytes/Holomat).
+Interfaz holográfica controlada con el dedo índice. Inspirado en el proyecto [HoloMat de Concept Bytes](https://github.com/Concept-Bytes/Holomat).
 
-Usa la cámara web para detectar la mano mediante MediaPipe y renderiza una interfaz estilo HUD sobre fondo negro con Pygame, donde puedes interactuar con paneles flotantes usando gestos naturales.
+Usa la cámara web para detectar la mano mediante MediaPipe y renderiza una interfaz estilo HUD sobre fondo negro con Pygame. La interacción es únicamente con el dedo índice: apuntar y mantener sobre un elemento para activarlo.
 
 ## Demo
 
-- Paneles flotantes con estilo HUD (esquinas bracket, fondo semi-transparente)
-- Cursor visual: círculos en índice, pulgar y dedo medio
-- Drag para mover ventanas, click para interactuar
+- Menú radial con círculo Home central y apps alrededor
+- Apps a pantalla completa con botones circulares
+- Cursor visual: círculo azul claro en la punta del índice
+- Hover para interactuar (sin gestos complejos)
 
-## Gestos
+## Interacción
 
-| Gesto | Dedos | Acción |
-|-------|-------|--------|
-| **Click** | Pulgar + dedo medio | Ejecuta acción en la ventana apuntada |
-| **Drag** | Pulgar + índice + mover | Arrastra la ventana |
-| **Hold** | Pulgar + índice quieto (0.6s) | Mantener presionado |
-| **Puño** | Todos los dedos cerrados | Detectado (sin acción asignada) |
-| **Mano abierta** | Todos los dedos extendidos | Detectado (sin acción asignada) |
+| Acción | Cómo | Tiempo |
+|--------|------|--------|
+| **Abrir menú de apps** | Mantener índice sobre HOME | ~1s |
+| **Seleccionar app** | Mantener índice sobre el círculo de la app | ~0.8s |
+| **Controlar Spotify** | Mantener índice sobre botón (<<, ▶/❚❚, >>) | ~0.8s |
+| **Regresar al Home** | Mantener índice sobre botón Home (esquina inferior izq.) | ~0.8s |
+
+Todos los elementos interactivos muestran un arco de progreso visual mientras se mantiene el dedo sobre ellos.
 
 ## Arquitectura
 
 ```
 src/
-├── main.py                          # Loop principal (orquestación)
-├── resources/                       # Assets (logos, iconos)
-│   └── spotify_logo.png
+├── main.py                          # Loop principal (2 estados: HOME / APP)
 └── core/
-    ├── hand_tracker.py              # Detección de mano (MediaPipe)
-    ├── gesture_detector.py          # Máquina de estados de gestos
-    ├── draggable_object.py          # Objeto arrastrable con smoothing
-    ├── window_manager.py            # Gestión de ventanas y eventos
+    ├── hand_tracker.py              # Detección de mano (MediaPipe + CLAHE + One Euro Filter)
+    ├── home_menu.py                 # Menú radial con hover-to-select
     ├── renderer.py                  # Renderizado con Pygame
     └── widgets/
-        ├── weather_widget.py        # Widget de hora/fecha (listo para API de clima)
-        ├── spotify_widget.py        # Widget de Spotify (reproductor)
+        ├── weather_widget.py        # Widget de hora/fecha (pantalla completa)
+        ├── spotify_widget.py        # Widget de Spotify con botones hover
         └── spotify_controller.py    # Auth OAuth2 + control de Spotify
 ```
 
@@ -83,41 +81,41 @@ python main.py
 
 - Presiona **ESC** para salir
 - Pon la mano frente a la cámara
-- Junta **pulgar + índice** sobre una ventana y mueve para arrastrar
-- Junta **pulgar + dedo medio** para hacer click
+- Mantén el dedo índice sobre **HOME** para desplegar las apps
+- Mantén el dedo sobre una app para abrirla
+- Dentro de una app, mantén el dedo sobre los botones para interactuar
+- Mantén el dedo sobre el botón **Home** (esquina inferior izquierda) para regresar
 
 ## Características técnicas
 
-### Detección de gestos
-- Histéresis en el pinch (umbral diferente para activar vs soltar)
-- Suavizado con mediana sobre N frames para reducir ruido
-- Buffer de confirmación para evitar falsos positivos
-- Protección extra contra soltar durante drag (umbral más generoso + buffer de release)
-- Detección de dedos basada en distancias 3D al MCP (independiente de orientación)
+### Detección de mano
+- MediaPipe Hands con confianza de detección 0.75 y tracking 0.6
+- Preprocesamiento CLAHE para normalizar iluminación variable
+- One Euro Filter para suavizado adaptativo del cursor (suave cuando quieto, rápido al moverse)
 
 ### Renderizado
 - Pygame con ventana sin bordes (NOFRAME)
 - Fondo negro (la cámara solo se usa para detección, no se muestra)
-- Transparencia real con SRCALPHA
-- UI estilo HUD: esquinas bracket, colores azul claro sobre negro
-- Sistema de widgets extensible
+- UI estilo HUD: colores azul claro sobre negro
+- Arcos de progreso visual en los elementos al hacer hover
 
-### Interacción
-- Cursor suavizado para reducir jitter de MediaPipe
-- Drag con interpolación suave (smoothing)
-- Z-order dinámico (la ventana arrastrada se trae al frente)
-- Sistema de click_actions por ventana
+### Menú Home
+- Círculo central HOME con apps distribuidas alrededor
+- Animación ease-out cubic al desplegar/ocultar apps
+- Líneas de conexión del centro a cada app
+- Soporte para imágenes en los círculos de apps
 
 ## Widgets
 
 ### WEATHER
-- Muestra hora y fecha en tiempo real
+- Muestra hora y fecha en tiempo real (pantalla completa, fuentes grandes)
 - Estructura preparada para conectar OpenWeatherMap API
 
 ### SPOTIFY
 - Integración con Spotify Web API (OAuth2)
 - Muestra canción actual, artista y barra de progreso
-- Control de reproducción: play/pause, next, previous
+- Botones circulares con hover: previous, play/pause, next
+- Cada botón tiene su propio arco de progreso
 - Actualizaciones en hilo de background (no bloquea el render)
 
 ### JARVIS
@@ -125,7 +123,7 @@ python main.py
 
 ## Dependencias principales
 
-- `opencv-contrib-python` — Captura de cámara
+- `opencv-contrib-python` — Captura de cámara y preprocesamiento
 - `mediapipe` — Detección de mano y landmarks
 - `pygame` — Renderizado de la interfaz
 - `requests` — Comunicación con Spotify API
