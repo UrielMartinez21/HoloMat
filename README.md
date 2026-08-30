@@ -127,15 +127,17 @@ Actualmente HoloMat funciona en pantalla (monitor/laptop). Para convertirlo en u
 
 ### Hardware necesario
 
-| Item | Opción recomendada | Precio aprox. |
-|------|-------------------|---------------|
-| **Cámara USB** | Logitech C920 (1080p, buen low-light) | $400–900 MXN / $25–50 USD |
-| **Proyector** | Mini proyector 720p+ con HDMI (YABER, VANKYO, WiMiUS) | $1,500–2,500 MXN / $80–130 USD |
-| **Soporte** | Tripié, estante o soporte de techo | $300–500 MXN |
+| Item | Opción recomendada | Precio aprox. | Link |
+|------|-------------------|---------------|------|
+| **Cámara USB** | [UGREEN 1080p@30FPS](https://www.amazon.com.mx/UGREEN-Correcci%C3%B3n-Transmisi%C3%B3n-Conferencia-Videollamada/dp/B0C76ZD7KV) — Corrección automática de luz, 85°, 4.6★ (6,400+ reseñas) | ~$599 MXN | [Amazon MX](https://www.amazon.com.mx/UGREEN-Correcci%C3%B3n-Transmisi%C3%B3n-Conferencia-Videollamada/dp/B0C76ZD7KV) |
+| **Proyector** | [Tecaki Mini 1080p](https://www.amazon.com.mx/proyector-Tecaki-inteligente-autom%C3%A1tico-compatible/dp/B0DSC1MFH6) — WiFi+Bluetooth, giratorio 180°, enfoque automático, 4.5★ (600+ reseñas) | ~$800–1,100 MXN | [Amazon MX](https://www.amazon.com.mx/proyector-Tecaki-inteligente-autom%C3%A1tico-compatible/dp/B0DSC1MFH6) |
+| **Soporte** | Tripié, estante o soporte de techo | $0–300 MXN | — |
 
-La cámara de una laptop no sirve porque apunta a la cara, no a la mesa. Se necesita una webcam USB que se pueda montar apuntando hacia abajo.
+**Total estimado: ~$1,400–1,700 MXN (~$75–90 USD)**
 
-Para el proyector lo importante es que sea al menos 720p **nativo** (no interpolado) y que tenga brillo decente (~2000+ lúmenes). No se necesita uno profesional.
+La cámara de una laptop no sirve porque apunta a la cara, no a la mesa. Se necesita una webcam USB que se pueda montar apuntando hacia abajo. La corrección automática de luz de la UGREEN complementa el preprocesamiento CLAHE de `hand_tracker.py` para una detección de mano más confiable.
+
+Para el proyector lo importante es que sea al menos 720p **nativo** (no interpolado) y que tenga brillo decente (~2000+ lúmenes). El Tecaki soporta 1080p y su giro de 180° facilita el montaje apuntando hacia abajo.
 
 ### Montaje
 
