@@ -32,6 +32,7 @@ class Renderer:
         self.font_title = pygame.font.SysFont("Consolas", 22, bold=True)
         self.font_status = pygame.font.SysFont("Consolas", 18)
         self.font_small = pygame.font.SysFont("Consolas", 14)
+        self.font_header = pygame.font.SysFont("Consolas", 28, bold=True)
 
         # Widgets asociados a ventanas
         self.widgets = {}
@@ -100,6 +101,47 @@ class Renderer:
 
         pygame.draw.circle(self.screen, mid_color, (mx, my), mid_radius, 2)
         pygame.draw.circle(self.screen, mid_color, (mx, my), 2)
+
+    def draw_cursor_only(self, hand_landmarks, frame_shape):
+        """Dibuja solo el cursor del índice (para el menú Home)."""
+        h, w, _ = frame_shape
+
+        index_tip = hand_landmarks.landmark[8]
+        ix = int(index_tip.x * w)
+        iy = int(index_tip.y * h)
+
+        pygame.draw.circle(self.screen, self.color_primary, (ix, iy), 15, 3)
+        pygame.draw.circle(self.screen, self.color_primary, (ix, iy), 3)
+
+    def draw_home_menu(self, home_menu):
+        """Dibuja el menú radial Home."""
+        home_menu.draw(self.screen)
+
+    def draw_back_button(self, back_button_rect, is_hovered=False):
+        """Dibuja el botón de regreso al Home."""
+        color = self.color_hover if is_hovered else self.color_primary
+
+        # Fondo semi-transparente
+        bg = pygame.Surface(
+            (back_button_rect.width, back_button_rect.height),
+            pygame.SRCALPHA
+        )
+        bg.fill((20, 20, 40, 180))
+        self.screen.blit(bg, back_button_rect.topleft)
+
+        # Borde
+        pygame.draw.rect(self.screen, color, back_button_rect, 2, border_radius=8)
+
+        # Texto
+        text = self.font_small.render("< HOME", True, color)
+        text_rect = text.get_rect(center=back_button_rect.center)
+        self.screen.blit(text, text_rect)
+
+    def draw_app_header(self, app_name):
+        """Dibuja el nombre de la app activa arriba de la pantalla."""
+        text = self.font_header.render(app_name, True, self.color_primary)
+        text_rect = text.get_rect(centerx=self.width // 2, top=15)
+        self.screen.blit(text, text_rect)
 
     def draw_windows(self, windows, active_window):
         for window in windows:
@@ -179,8 +221,24 @@ class Renderer:
         )
         self.screen.blit(text_surface, (30, self.height - 40))
 
+    def render_home(self, home_menu):
+        """Renderiza el menú Home."""
+        self.draw_home_menu(home_menu)
+        self.draw_status()
+        pygame.display.flip()
+        self.clock.tick(self.fps)
+
+    def render_app(self, windows, active_window, app_name, back_button_rect, back_hovered):
+        """Renderiza una app con sus ventanas y botón de regreso."""
+        self.draw_app_header(app_name)
+        self.draw_windows(windows, active_window)
+        self.draw_back_button(back_button_rect, back_hovered)
+        self.draw_status()
+        pygame.display.flip()
+        self.clock.tick(self.fps)
+
     def render(self, windows, active_window):
-        """Dibuja ventanas y status, luego actualiza pantalla."""
+        """Dibuja ventanas y status, luego actualiza pantalla (legacy)."""
         self.draw_windows(windows, active_window)
         self.draw_status()
         pygame.display.flip()
