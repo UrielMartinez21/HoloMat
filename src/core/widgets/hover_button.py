@@ -2,8 +2,50 @@
 
 import math
 import time
+import array
 
 import pygame
+
+
+def _generate_click_sound():
+    """Genera un sonido de click corto programáticamente.
+
+    Onda senoidal de 1000 Hz con fade-out rápido, ~50ms.
+    No requiere archivos externos.
+    """
+    if not pygame.mixer.get_init():
+        pygame.mixer.init(frequency=44100, size=-16, channels=1)
+
+    sample_rate = 44100
+    duration = 0.05  # 50ms
+    frequency = 1000  # Hz
+    n_samples = int(sample_rate * duration)
+
+    samples = array.array("h")  # signed short
+    for i in range(n_samples):
+        t = i / sample_rate
+        fade = 1.0 - (i / n_samples)  # linear fade-out
+        value = int(16000 * fade * math.sin(2 * math.pi * frequency * t))
+        samples.append(value)
+
+    sound = pygame.mixer.Sound(buffer=samples)
+    sound.set_volume(0.3)
+    return sound
+
+
+# Sonido compartido por todos los botones (se inicializa una vez)
+_click_sound = None
+
+
+def _get_click_sound():
+    """Lazy init del sonido de click."""
+    global _click_sound
+    if _click_sound is None:
+        try:
+            _click_sound = _generate_click_sound()
+        except Exception:
+            _click_sound = False  # Marca como falló, no reintentar
+    return _click_sound if _click_sound else None
 
 
 class HoverButton:
@@ -117,6 +159,11 @@ class HoverButton:
 
         if elapsed >= self.delay:
             self._triggered = True
+
+            # Sound feedback
+            sound = _get_click_sound()
+            if sound:
+                sound.play()
 
             if self.on_trigger:
                 self.on_trigger()

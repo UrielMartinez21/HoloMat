@@ -2,6 +2,8 @@ import math
 import time
 import pygame
 
+from core.widgets.hover_button import _get_click_sound
+
 
 class AppCircle:
     """Círculo de app en el menú radial estilo HoloMat."""
@@ -213,6 +215,10 @@ class HomeMenu:
                     self.last_toggle_time = current_time
                     self.main_circle.hover_start_time = 0
 
+                    sound = _get_click_sound()
+                    if sound:
+                        sound.play()
+
                     for circle in self.circles[1:]:
                         circle.start_animation(self.apps_visible)
 
@@ -229,6 +235,9 @@ class HomeMenu:
                     duration = circle.get_hover_duration()
 
                     if duration >= self.select_delay:
+                        sound = _get_click_sound()
+                        if sound:
+                            sound.play()
                         return circle.name
 
                     elif duration > 0:

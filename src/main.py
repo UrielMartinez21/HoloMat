@@ -11,6 +11,7 @@ from core.widgets.weather_widget import WeatherWidget
 from core.widgets.spotify_widget import SpotifyWidget
 from core.widgets.system_widget import SystemWidget
 from core.widgets.jarvis_widget import JarvisWidget
+from core.widgets.hover_button import _get_click_sound
 
 
 # Estados
@@ -145,6 +146,10 @@ def main():
 
                             if elapsed >= home_hover_delay:
                                 # Regresar al Home
+                                sound = _get_click_sound()
+                                if sound:
+                                    sound.play()
+
                                 state = STATE_HOME
                                 current_app = None
                                 home_hover_start = 0
