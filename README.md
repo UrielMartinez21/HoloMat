@@ -121,6 +121,66 @@ python main.py
 ### JARVIS
 - Placeholder (sin funcionalidad asignada)
 
+## Siguiente nivel: modo proyector
+
+Actualmente HoloMat funciona en pantalla (monitor/laptop). Para convertirlo en una interfaz holográfica real proyectada sobre una mesa se necesita hardware adicional y un paso de calibración.
+
+### Hardware necesario
+
+| Item | Opción recomendada | Precio aprox. |
+|------|-------------------|---------------|
+| **Cámara USB** | Logitech C920 (1080p, buen low-light) | $400–900 MXN / $25–50 USD |
+| **Proyector** | Mini proyector 720p+ con HDMI (YABER, VANKYO, WiMiUS) | $1,500–2,500 MXN / $80–130 USD |
+| **Soporte** | Tripié, estante o soporte de techo | $300–500 MXN |
+
+La cámara de una laptop no sirve porque apunta a la cara, no a la mesa. Se necesita una webcam USB que se pueda montar apuntando hacia abajo.
+
+Para el proyector lo importante es que sea al menos 720p **nativo** (no interpolado) y que tenga brillo decente (~2000+ lúmenes). No se necesita uno profesional.
+
+### Montaje
+
+```
+     ┌──────────────┐
+     │   Estante /   │
+     │   soporte     │
+     │               │
+     │  [Proyector]  │  ← Apuntando hacia abajo
+     │  [Cámara USB] │  ← Al lado del proyector
+     │               │
+     └───────┬───────┘
+             │  (~60-100 cm)
+             ▼
+     ┌─────────────────┐
+     │                  │
+     │   Mesa oscura    │  ← Superficie de proyección
+     │                  │
+     └─────────────────┘
+```
+
+El proyector y la cámara se montan mirando hacia abajo sobre una mesa oscura. El fondo negro de Pygame se funde con la superficie y solo se ven los elementos de la interfaz.
+
+### Calibración
+
+La cámara y el proyector ven la mesa desde ángulos diferentes. Se necesita una **matriz de homografía** que transforme las coordenadas de la cámara al espacio del proyector.
+
+El proceso (una sola vez):
+1. El script de calibración proyecta 4 puntos en las esquinas de la mesa
+2. Tocas cada punto con el dedo índice
+3. Se captura la posición que ve la cámara para cada punto
+4. Se calcula la transformación con `cv2.findHomography`
+5. Se guarda en un archivo `M.npy`
+
+Después, en cada frame los landmarks de MediaPipe se pasan por `cv2.perspectiveTransform` con esa matriz para mapearlos al espacio del proyector.
+
+### Variables de entorno para proyector
+
+```env
+SCREEN_WIDTH=1920
+SCREEN_HEIGHT=1080
+```
+
+La resolución debe coincidir con la resolución nativa del proyector.
+
 ## Dependencias principales
 
 - `opencv-contrib-python` — Captura de cámara y preprocesamiento
