@@ -4,11 +4,14 @@ import random
 
 import pygame
 
+from core.widgets.base_widget import BaseWidget
+from core.widgets.hover_button import HoverButton
 
-class JarvisWidget:
+
+class JarvisWidget(BaseWidget):
     """Widget JARVIS — interfaz holográfica con animaciones.
 
-    Estado visual animado con botones hover para controlar
+    Estado visual animado con botón hover para controlar
     listening/idle. El LLM se conectará después.
     """
 
@@ -21,18 +24,15 @@ class JarvisWidget:
         self.font_status = pygame.font.SysFont("Consolas", 28, bold=True)
         self.font_label = pygame.font.SysFont("Consolas", 16)
         self.font_hint = pygame.font.SysFont("Consolas", 14)
-        self.font_btn = pygame.font.SysFont("Consolas", 24, bold=True)
 
         self.state = self.STATE_IDLE
         self.start_time = time.time()
+        self._thinking_start = 0
 
         # Colores
         self.color_primary = (173, 216, 230)
-        self.color_accent = (100, 200, 255)
         self.color_listening = (100, 255, 180)
         self.color_thinking = (255, 200, 100)
-        self.color_hover = (200, 255, 255)
-        self.color_selected = (100, 255, 100)
         self.color_dim = (60, 60, 80)
 
         # Partículas orbitales
@@ -45,14 +45,11 @@ class JarvisWidget:
                 "size": random.randint(2, 4),
             })
 
-        # Botón (listen/stop)
-        self.btn_action = pygame.Rect(0, 0, 100, 100)
-
-        # Hover state
-        self.hovered_btn = None
-        self.hover_start = 0
-        self.hover_delay = 0.8
-        self.hover_triggered = False
+        # Botón de acción (posición se calcula en draw)
+        self.btn_action = HoverButton(
+            0, 0, 50, "MIC",
+            on_trigger=self._toggle_state,
+        )
 
         # Texto de respuesta (placeholder para cuando se conecte LLM)
         self.response_text = None
@@ -61,34 +58,11 @@ class JarvisWidget:
         pass
 
     def update_hover(self, finger_x, finger_y):
-        """Actualiza hover sobre el botón. Retorna True si se activó."""
-        current_btn = None
-
-        if self.btn_action.collidepoint(finger_x, finger_y):
-            current_btn = "action"
-
-        if current_btn != self.hovered_btn:
-            self.hovered_btn = current_btn
-            self.hover_start = time.time() if current_btn else 0
-            self.hover_triggered = False
-            return False
-
-        if current_btn is None or self.hover_triggered:
-            return False
-
-        elapsed = time.time() - self.hover_start
-
-        if elapsed >= self.hover_delay:
-            self.hover_triggered = True
-            self._toggle_state()
-            return True
-
-        return False
+        """Actualiza hover sobre el botón."""
+        self.btn_action.update(finger_x, finger_y)
 
     def clear_hover(self):
-        self.hovered_btn = None
-        self.hover_start = 0
-        self.hover_triggered = False
+        self.btn_action.clear()
 
     def _toggle_state(self):
         """Cambia entre IDLE y LISTENING."""
@@ -96,20 +70,10 @@ class JarvisWidget:
             self.state = self.STATE_LISTENING
             self.response_text = None
         elif self.state == self.STATE_LISTENING:
-            # Simula "thinking" brevemente y luego vuelve a idle
             self.state = self.STATE_THINKING
             self._thinking_start = time.time()
         elif self.state == self.STATE_THINKING:
             self.state = self.STATE_IDLE
-
-    def _get_hover_progress(self):
-        """Progreso del hover para el botón."""
-        if self.hovered_btn != "action" or self.hover_triggered:
-            return 0.0
-        if self.hover_start == 0:
-            return 0.0
-        elapsed = time.time() - self.hover_start
-        return min(elapsed / self.hover_delay, 1.0)
 
     def _get_state_color(self):
         """Color según el estado actual."""
@@ -232,8 +196,17 @@ class JarvisWidget:
 
         # --- Action button ---
         btn_y = cy + outer_radius + 120
-        self.btn_action = pygame.Rect(cx - 50, btn_y - 50, 100, 100)
-        self._draw_btn(screen, self.btn_action, state_color)
+        self.btn_action.set_position(cx, btn_y)
+
+        # Update label based on state
+        if self.state == self.STATE_IDLE:
+            self.btn_action.label = "MIC"
+        elif self.state == self.STATE_LISTENING:
+            self.btn_action.label = "STOP"
+        else:
+            self.btn_action.label = "..."
+
+        self.btn_action.draw(screen)
 
     def _draw_dashed_ring(self, screen, cx, cy, radius, rotation, color, segments):
         """Dibuja un anillo segmentado que rota."""
@@ -249,47 +222,3 @@ class JarvisWidget:
                 radius * 2, radius * 2,
             )
             pygame.draw.arc(screen, color, rect, angle_start, angle_end, 2)
-
-    def _draw_btn(self, screen, rect, state_color):
-        """Dibuja el botón de acción circular."""
-        center = rect.center
-        radius = rect.width // 2
-
-        is_hovered = self.hovered_btn == "action"
-        btn_color = self.color_hover if is_hovered else self.color_primary
-
-        # Fondo
-        bg = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
-        pygame.draw.circle(bg, (20, 20, 40, 160), (radius, radius), radius)
-        screen.blit(bg, (center[0] - radius, center[1] - radius))
-
-        # Borde
-        pygame.draw.circle(screen, btn_color, center, radius, 3)
-
-        # Icono según estado
-        if self.state == self.STATE_IDLE:
-            icon = "MIC"
-        elif self.state == self.STATE_LISTENING:
-            icon = "STOP"
-        else:
-            icon = "..."
-
-        surface = self.font_btn.render(icon, True, btn_color)
-        text_rect = surface.get_rect(center=center)
-        screen.blit(surface, text_rect)
-
-        # Arco de progreso hover
-        progress = self._get_hover_progress()
-        if progress > 0.05:
-            arc_radius = radius + 6
-            arc_rect = pygame.Rect(
-                center[0] - arc_radius, center[1] - arc_radius,
-                arc_radius * 2, arc_radius * 2,
-            )
-            start = math.pi / 2
-            end = start + (2 * math.pi * progress)
-            arc_color = self.color_selected if progress >= 0.9 else self.color_hover
-            pygame.draw.arc(screen, arc_color, arc_rect, start, end, 3)
-
-    def stop(self):
-        pass

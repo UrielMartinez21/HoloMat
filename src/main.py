@@ -102,7 +102,7 @@ def main():
 
                         # Reset hover del widget al entrar
                         w = widgets.get(selected)
-                        if w and hasattr(w, 'clear_hover'):
+                        if w:
                             w.clear_hover()
                     else:
                         renderer.status_text = "Menú Home"
@@ -165,14 +165,14 @@ def main():
                         home_hover_start = 0
 
                     # Hover sobre botones del widget (si no está sobre Home)
-                    if not home_hovered and widget and hasattr(widget, 'update_hover'):
+                    if not home_hovered and widget:
                         widget.update_hover(fx, fy)
-                    elif widget and hasattr(widget, 'clear_hover'):
+                    elif widget:
                         widget.clear_hover()
 
                 else:
                     home_hover_start = 0
-                    if widget and hasattr(widget, 'clear_hover'):
+                    if widget:
                         widget.clear_hover()
 
                 # Dibujar widget

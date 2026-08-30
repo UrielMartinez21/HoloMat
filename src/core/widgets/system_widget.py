@@ -1,13 +1,15 @@
 """Widget de monitoreo del sistema — pantalla completa."""
 
 import math
-import time
 import threading
+
 import pygame
 import psutil
 
+from core.widgets.base_widget import BaseWidget
 
-class SystemWidget:
+
+class SystemWidget(BaseWidget):
     """Muestra CPU, RAM, disco y batería en tiempo real."""
 
     def __init__(self):

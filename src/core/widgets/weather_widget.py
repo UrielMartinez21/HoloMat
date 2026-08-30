@@ -1,8 +1,10 @@
 import time
 import pygame
 
+from core.widgets.base_widget import BaseWidget
 
-class WeatherWidget:
+
+class WeatherWidget(BaseWidget):
     """Widget de clima / reloj — pantalla completa."""
 
     def __init__(self):
@@ -47,6 +49,3 @@ class WeatherWidget:
                 )
                 rect = surface.get_rect(centerx=cx, centery=cy + 150)
                 screen.blit(surface, rect)
-
-    def stop(self):
-        pass
