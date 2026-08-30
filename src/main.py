@@ -98,9 +98,6 @@ def main():
         pinch_threshold=0.09,
         pinch_release_threshold=0.11,
         pinch_drag_release_threshold=0.14,
-        click_threshold=0.06,
-        click_release_threshold=0.08,
-        click_max_duration=0.40,
         drag_threshold=12,
         hold_duration=0.60
     )
@@ -179,7 +176,6 @@ def run_home(results, tracker, frame_shape, renderer, home_menu, app_state, widg
         hand_landmarks = results.multi_hand_landmarks[0]
         x, y = tracker.get_index_tip(hand_landmarks, frame_shape)
 
-        # Actualizar menú (hover con timer → selecciona)
         selected = home_menu.update(x, y)
 
         if selected:
@@ -202,7 +198,7 @@ def run_app(results, tracker, frame_shape, renderer, gesture_detector, app_state
         hand_landmarks = results.multi_hand_landmarks[0]
         x, y = tracker.get_index_tip(hand_landmarks, frame_shape)
 
-        # Hover sobre botón de regreso (mismo patrón: mantener dedo → volver)
+        # Hover sobre botón de regreso
         if app_state.back_button_rect.collidepoint(x, y):
             if not app_state.back_hovered:
                 app_state.back_hovered = True
@@ -216,14 +212,15 @@ def run_app(results, tracker, frame_shape, renderer, gesture_detector, app_state
             app_state.back_hovered = False
             app_state.back_hover_start = 0
 
+        # Hover sobre ventanas (incluye hover-to-click)
         hovered_window = wm.update_hover(x, y)
 
+        # Gestos de pinch/drag
         event = gesture_detector.update_interaction(
             hand_landmarks, x, y
         )
 
         is_pinching = gesture_detector.previous_pinch
-        is_clicking = gesture_detector.previous_click_gesture
 
         result_text = wm.handle_event(
             event, x, y, gesture_detector, hand_landmarks
@@ -235,7 +232,6 @@ def run_app(results, tracker, frame_shape, renderer, gesture_detector, app_state
         renderer.draw_finger_points(
             hand_landmarks, frame_shape,
             is_pinching=is_pinching,
-            is_clicking=is_clicking,
             is_hovering=(hovered_window is not None)
         )
 

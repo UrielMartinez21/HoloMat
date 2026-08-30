@@ -55,20 +55,17 @@ class Renderer:
         """Limpia la pantalla con fondo negro."""
         self.screen.fill(self.color_black)
 
-    def draw_finger_points(self, hand_landmarks, frame_shape, is_pinching=False, is_clicking=False, is_hovering=False):
-        """Dibuja círculos en índice, pulgar y dedo medio."""
+    def draw_finger_points(self, hand_landmarks, frame_shape, is_pinching=False, is_hovering=False):
+        """Dibuja círculos en índice y pulgar."""
         h, w, _ = frame_shape
 
         index_tip = hand_landmarks.landmark[8]
         thumb_tip = hand_landmarks.landmark[4]
-        middle_tip = hand_landmarks.landmark[12]
 
         ix = int(index_tip.x * w)
         iy = int(index_tip.y * h)
         tx = int(thumb_tip.x * w)
         ty = int(thumb_tip.y * h)
-        mx = int(middle_tip.x * w)
-        my = int(middle_tip.y * h)
 
         # Color del índice (cursor)
         if is_hovering:
@@ -90,17 +87,6 @@ class Renderer:
 
         pygame.draw.circle(self.screen, thumb_color, (tx, ty), thumb_radius, 2)
         pygame.draw.circle(self.screen, thumb_color, (tx, ty), 2)
-
-        # Dedo medio: cambia si está en click
-        if is_clicking:
-            mid_color = self.color_click
-            mid_radius = 12
-        else:
-            mid_color = self.color_primary
-            mid_radius = 8
-
-        pygame.draw.circle(self.screen, mid_color, (mx, my), mid_radius, 2)
-        pygame.draw.circle(self.screen, mid_color, (mx, my), 2)
 
     def draw_cursor_only(self, hand_landmarks, frame_shape):
         """Dibuja solo el cursor del índice (para el menú Home)."""

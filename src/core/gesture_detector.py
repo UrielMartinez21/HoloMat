@@ -9,9 +9,6 @@ class GestureDetector:
         pinch_threshold=0.09,
         pinch_release_threshold=0.11,
         pinch_drag_release_threshold=0.14,
-        click_threshold=0.06,
-        click_release_threshold=0.08,
-        click_max_duration=0.40,
         drag_threshold=12,
         hold_duration=0.60,
         pinch_buffer_size=2,
@@ -20,9 +17,6 @@ class GestureDetector:
         self.pinch_threshold = pinch_threshold
         self.pinch_release_threshold = pinch_release_threshold
         self.pinch_drag_release_threshold = pinch_drag_release_threshold
-        self.click_threshold = click_threshold
-        self.click_release_threshold = click_release_threshold
-        self.click_max_duration = click_max_duration
         self.drag_threshold = drag_threshold
         self.hold_duration = hold_duration
 
@@ -42,11 +36,6 @@ class GestureDetector:
         # Protección contra soltar durante drag
         self.release_buffer_size = 4
         self.release_buffer = deque(maxlen=self.release_buffer_size)
-
-        # Click: pulgar + dedo medio
-        self.previous_click_gesture = False
-        self.click_start_time = None
-        self.click_distance_history = deque(maxlen=3)
 
     def _distance(self, p1, p2):
         return math.sqrt(
@@ -82,18 +71,6 @@ class GestureDetector:
             return (sorted_distances[mid - 1] + sorted_distances[mid]) / 2
         else:
             return sorted_distances[mid]
-
-    def _get_click_distance(self, hand_landmarks):
-        """Distancia pulgar-dedo medio con suavizado."""
-        thumb_tip = hand_landmarks.landmark[4]
-        middle_tip = hand_landmarks.landmark[12]
-
-        raw_distance = self._distance(thumb_tip, middle_tip)
-        self.click_distance_history.append(raw_distance)
-
-        sorted_distances = sorted(self.click_distance_history)
-        mid = len(sorted_distances) // 2
-        return sorted_distances[mid]
 
     def _confirm_pinch_state(self, raw_pinch):
         """Confirma cambio si se mantiene por N frames."""
@@ -132,15 +109,6 @@ class GestureDetector:
             self.release_buffer.clear()
 
         return self._confirm_pinch_state(raw_pinch)
-
-    def is_clicking(self, hand_landmarks):
-        """Detecta click (pulgar + dedo medio)."""
-        distance = self._get_click_distance(hand_landmarks)
-
-        if self.previous_click_gesture:
-            return distance < self.click_release_threshold
-        else:
-            return distance < self.click_threshold
 
     def _is_finger_extended(self, landmarks, tip_idx, pip_idx, mcp_idx):
         tip = landmarks[tip_idx]
@@ -191,33 +159,9 @@ class GestureDetector:
 
     def update_interaction(self, hand_landmarks, x, y):
         current_pinch = self.is_pinching(hand_landmarks)
-        current_click = self.is_clicking(hand_landmarks)
         current_time = time.time()
 
         event = None
-
-        # -------------------------
-        # Click (pulgar + dedo medio)
-        # -------------------------
-
-        if current_click and not self.previous_click_gesture:
-            # Inicio del gesto de click
-            self.click_start_time = current_time
-
-        elif not current_click and self.previous_click_gesture:
-            # Soltar → disparar click si fue rápido
-            if self.click_start_time:
-                elapsed = current_time - self.click_start_time
-                if elapsed <= self.click_max_duration:
-                    event = "CLICK"
-            self.click_start_time = None
-
-        self.previous_click_gesture = current_click
-
-        # Si hubo click, retornarlo inmediatamente
-        if event == "CLICK":
-            self.previous_pinch = current_pinch
-            return event
 
         # -------------------------
         # Drag (pulgar + índice)

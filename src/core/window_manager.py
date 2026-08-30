@@ -1,3 +1,5 @@
+import time
+
 from core.draggable_object import DraggableObject
 
 
@@ -6,6 +8,12 @@ class WindowManager:
         self.windows = []
         self.active_window = None
         self.click_actions = {}
+
+        # Hover-to-click (dwell)
+        self.hover_target = None
+        self.hover_start_time = 0
+        self.hover_click_delay = 0.8
+        self.hover_click_triggered = False
 
     def add_window(self, window):
         self.windows.append(window)
@@ -25,7 +33,52 @@ class WindowManager:
             else:
                 window.hovering = False
 
+        # Actualizar hover-to-click
+        self._update_hover_click(hovered)
+
         return hovered
+
+    def _update_hover_click(self, hovered_window):
+        """Actualiza el sistema de hover-to-click."""
+        if hovered_window is None:
+            self.hover_target = None
+            self.hover_start_time = 0
+            self.hover_click_triggered = False
+            return
+
+        # Si cambió la ventana, resetear
+        if hovered_window != self.hover_target:
+            self.hover_target = hovered_window
+            self.hover_start_time = time.time()
+            self.hover_click_triggered = False
+            return
+
+        # Misma ventana → verificar si pasó el delay
+        if self.hover_click_triggered:
+            return
+
+        elapsed = time.time() - self.hover_start_time
+
+        if elapsed >= self.hover_click_delay:
+            self.hover_click_triggered = True
+
+            # Ejecutar acción de click
+            if hovered_window.name in self.click_actions:
+                self.click_actions[hovered_window.name]()
+                print(f"HOVER CLICK en {hovered_window.name}")
+
+    def get_hover_click_progress(self):
+        """Retorna (ventana, progreso 0.0-1.0) del hover-to-click actual."""
+        if self.hover_target is None or self.hover_click_triggered:
+            return None, 0.0
+
+        # Solo mostrar progreso si la ventana tiene click_action
+        if self.hover_target.name not in self.click_actions:
+            return None, 0.0
+
+        elapsed = time.time() - self.hover_start_time
+        progress = min(elapsed / self.hover_click_delay, 1.0)
+        return self.hover_target, progress
 
     def start_drag(self, px, py):
         for window in reversed(self.windows):
@@ -34,6 +87,11 @@ class WindowManager:
 
                 self.windows.remove(window)
                 self.windows.append(window)
+
+                # Cancelar hover-click al iniciar drag
+                self.hover_target = None
+                self.hover_start_time = 0
+                self.hover_click_triggered = False
 
                 return window
 
@@ -60,23 +118,14 @@ class WindowManager:
         for window in self.windows:
             window.hovering = False
 
+        self.hover_target = None
+        self.hover_start_time = 0
+        self.hover_click_triggered = False
+
     def handle_event(self, event, x, y, gesture_detector, hand_landmarks):
         """Procesa un evento de gesto y retorna el texto de interacción."""
 
-        if event == "CLICK":
-            clicked_window = self.get_window_at(x, y)
-
-            if clicked_window:
-                # Ejecutar acción de click si existe
-                if clicked_window.name in self.click_actions:
-                    self.click_actions[clicked_window.name]()
-
-                print(f"CLICK en {clicked_window.name}")
-                return f"CLICK: {clicked_window.name}"
-
-            return "CLICK"
-
-        elif event == "HOLD":
+        if event == "HOLD":
             held_window = self.get_window_at(x, y)
 
             if held_window:
