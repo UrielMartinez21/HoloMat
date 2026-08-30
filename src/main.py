@@ -9,6 +9,7 @@ from core.renderer import Renderer
 from core.home_menu import HomeMenu
 from core.widgets.weather_widget import WeatherWidget
 from core.widgets.spotify_widget import SpotifyWidget
+from core.widgets.system_widget import SystemWidget
 
 
 # Estados
@@ -36,16 +37,17 @@ def main():
     # Widgets
     weather_widget = WeatherWidget()
     spotify_widget = SpotifyWidget()
+    system_widget = SystemWidget()
 
     widgets = {
         "WEATHER": weather_widget,
         "SPOTIFY": spotify_widget,
-        "JARVIS": None,
+        "SYSTEM": system_widget,
     }
 
     # Menú Home
     home_menu = HomeMenu(width, height)
-    home_menu.setup(["WEATHER", "SPOTIFY", "JARVIS"])
+    home_menu.setup(["WEATHER", "SPOTIFY", "SYSTEM"])
 
     # Estado
     state = STATE_HOME
@@ -94,9 +96,11 @@ def main():
                         state = STATE_APP
                         current_app = selected
                         home_hover_start = 0
+
                         # Reset hover del widget al entrar
-                        if selected == "SPOTIFY":
-                            spotify_widget.clear_hover()
+                        w = widgets.get(selected)
+                        if w and hasattr(w, 'clear_hover'):
+                            w.clear_hover()
                     else:
                         renderer.status_text = "Menú Home"
                 else:
@@ -158,9 +162,9 @@ def main():
                         home_hover_start = 0
 
                     # Hover sobre botones del widget (si no está sobre Home)
-                    if not home_hovered and hasattr(widget, 'update_hover'):
+                    if not home_hovered and widget and hasattr(widget, 'update_hover'):
                         widget.update_hover(fx, fy)
-                    elif hasattr(widget, 'clear_hover'):
+                    elif widget and hasattr(widget, 'clear_hover'):
                         widget.clear_hover()
 
                 else:
@@ -185,6 +189,7 @@ def main():
 
     finally:
         spotify_widget.stop()
+        system_widget.stop()
         tracker.close()
         cap.release()
         renderer.quit()
